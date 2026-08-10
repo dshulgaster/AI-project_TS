@@ -26,10 +26,16 @@ AG Grid parser implemented with effective-grid selection, row normalization, ded
 
 ## Review Fix Report
 
-- Malformed non-header group/child rows now emit a `malformed-row` warning with only a row index and stable message; header rows remain ignored.
+- Malformed non-header data rows emit `malformed-row`; malformed group rows emit `malformed-group-row` with only a row index and stable message; header rows remain ignored.
 - Visible fallback roots are selected by greatest DOM depth, with a regression test covering sibling roots at different nesting depths.
 - Parser tests now build DOM rows from all sanitized fixture fields, including `date`, `phaseHint`, and `numericFingerprint`, and assert normalized values.
-- Duplicate-wrapper coverage now uses multiple root candidates with conflicting duplicate content and verifies one logical row set plus the first valid row.
+- Duplicate-wrapper coverage uses one logical root with conflicting exact duplicates and same-index rows with different class fingerprints, verifying both deduplication and retention rules.
+
+## Follow-up Fix Report
+
+- Group rows without a non-empty name and `.ag-group-child-count` structure are skipped instead of becoming categories and emit stable `malformed-group-row` warnings.
+- The malformed-group regression keeps a header row in the same grid and verifies that header filtering remains unchanged.
+- The duplicate-wrapper regression creates conflicting duplicates inside one nested wrapper/root structure and verifies deduplication by `row-index` plus class fingerprint, including retention of a same-index row with a different fingerprint.
 
 ### Verification
 

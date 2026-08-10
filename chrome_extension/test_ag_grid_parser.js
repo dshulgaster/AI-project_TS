@@ -170,22 +170,43 @@ run('warns for malformed data rows, ignores headers, and does not log full cell 
   assert(!JSON.stringify(result.warnings).includes('secret full description'));
 });
 
-run('deduplicates multiple wrapper candidates and keeps the first valid conflicting row', () => {
+run('warns and skips malformed group rows while still filtering headers', () => {
+  const malformedGroup = row(4, 'ag-row-level-0 ag-row-group', [cell('ag-cell ag-row-group-cell', 'Без структуры')]);
+  const header = row(5, 'ag-header-row ag-row-level-0 ag-row-group', [cell('ag-header-cell', 'Заголовок')]);
+  const validGroup = row(6, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
+    cell('ag-group-value', 'Валидная группа'),
+    cell('ag-group-child-count', '(2)')
+  ]);
+  const result = parser.parseAgGrid(new FakeDocument([grid([malformedGroup, header, validGroup])]));
+
+  assert.strictEqual(result.categories.length, 1);
+  assert.strictEqual(result.categories[0].name, 'Валидная группа');
+  assert(result.warnings.some((warning) => warning.code === 'malformed-group-row' && warning.rowIndex === 4));
+  assert(!result.warnings.some((warning) => warning.code === 'malformed-group-row' && warning.rowIndex === 5));
+});
+
+run('deduplicates conflicting duplicates by row index and class fingerprint in one logical grid', () => {
   const fixture = fixtureRows('ag-grid-duplicate-wrappers.json');
   const firstRows = fixture.map((item) => row(item.rowIndex, item.rowClass, item.cells.map((itemCell) => cell(itemCell.cellClass, fixtureCellText(itemCell, item.rowIndex)))));
   const conflictingRows = fixture.map((item) => row(item.rowIndex, item.rowClass, item.cells.map((itemCell) => cell(itemCell.cellClass, itemCell.cellClass.includes('ag-column-hours') ? '9 ч' : 'конфликт'))));
-  const firstRoot = grid(firstRows);
-  const secondRoot = grid(conflictingRows);
-  const documentLike = new FakeDocument([
-    new FakeNode({ className: 'ag-root-wrapper', children: [firstRoot] }),
-    new FakeNode({ className: 'ag-root-wrapper', children: [new FakeNode({ className: 'ag-root-wrapper-body', children: [secondRoot] })] })
+  const sameIndexDifferentFingerprint = row(0, `${fixture[0].rowClass} ag-row-selected`, [
+    cell('ag-group-value', 'Отдельная строка'),
+    cell('ag-group-child-count', '(3)')
   ]);
+  const documentLike = new FakeDocument([new FakeNode({
+    className: 'ag-root-wrapper',
+    children: [new FakeNode({
+      className: 'ag-root-wrapper-body',
+      children: [grid(firstRows.concat(conflictingRows).concat([sameIndexDifferentFingerprint]))]
+    })]
+  })]);
   const result = parser.parseAgGrid(documentLike);
 
-  assert.strictEqual(result.grid.visibleRows, 2);
-  assert.strictEqual(result.categories.length, 1);
+  assert.strictEqual(result.grid.visibleRows, 3);
+  assert.strictEqual(result.categories.length, 2);
   assert.strictEqual(result.categories[0].factHours, 0.75);
   assert.strictEqual(result.categories[0].name, 'Группа 1.25');
+  assert.strictEqual(result.categories[1].name, 'Отдельная строка');
 });
 
 console.log('ALL AG GRID PARSER TESTS PASSED');

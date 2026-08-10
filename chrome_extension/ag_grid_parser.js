@@ -89,7 +89,11 @@
   }
 
   function parseGroup(row) {
-    const name = firstText(row, '.ag-group-value') || firstText(row, '.ag-row-group') || '';
+    const groupValue = row.querySelector('.ag-group-value');
+    const fallbackGroup = row.querySelector('.ag-row-group');
+    const childCountNode = row.querySelector('.ag-group-child-count');
+    const name = textOf(groupValue) || textOf(fallbackGroup);
+    if (!name || !childCountNode) return null;
     const countText = firstText(row, '.ag-group-child-count');
     const countMatch = countText.match(/\d+/);
     const childCount = countMatch ? Number(countMatch[0]) : 0;
@@ -147,6 +151,10 @@
         const level = levelOf(row);
         if (hasClass(row, 'ag-row-group')) {
           const category = parseGroup(row);
+          if (!category) {
+            warnings.push({ code: 'malformed-group-row', rowIndex: index, message: 'A group row was missing a name or valid group structure.' });
+            return;
+          }
           seen.add(fingerprint);
           validRows++;
           categories.push(category);
