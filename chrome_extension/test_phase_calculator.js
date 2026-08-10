@@ -136,3 +136,62 @@ const impossibleResult = phaseCalculator.calculatePlanFact({ request: {}, catego
 assert.strictEqual(impossibleResult.sourceQuality, 'error');
 assert.deepStrictEqual(Object.keys(impossibleResult), ['phases', 'totals', 'variances', 'sourceQuality', 'poSla', 'warnings', 'trace']);
 console.log('PASS: impossible empty source keeps the complete result contract');
+
+const normalizedAgGrid = phaseCalculator.normalizeAgGridRequest({
+  taskId: '1726097',
+  sourceQuality: 'expanded',
+  categories: [
+    { key: 'management', name: 'Управление запросом', factHours: 4, worklogs: [] },
+    { key: 'development', name: 'Разработка', factHours: 16, worklogs: [] }
+  ],
+  milestones: [],
+  warnings: [{ code: 'fixture-warning', message: 'fixture warning' }]
+});
+assert.strictEqual(normalizedAgGrid.categories[0].hours, 4);
+assert.strictEqual(normalizedAgGrid.categories[1].hours, 16);
+console.log('PASS: AG Grid categories normalize factHours for the calculator');
+
+const mappedTaskData = phaseCalculator.applyPhaseResultToTaskData({
+  factPrelimAnalysisDays: 99,
+  factFinalAnalysisDays: 99,
+  factDevDays: 99,
+  factAcceptanceDays: 99,
+  factStabilizationDays: 99,
+  factManagementDays: 99,
+  factTotalDays: 99,
+  sourceQuality: 'legacy',
+  expansionWarnings: []
+}, {
+  phases: {
+    po: { fact: 1, details: {} },
+    oa: { fact: 2, details: {} },
+    dev: { fact: 5, details: { management: 1 } },
+    accept: { fact: 3, details: {} },
+    stab: { fact: 4, details: {} }
+  },
+  totals: { fact: 15 },
+  sourceQuality: 'ready',
+  warnings: [{ code: 'fixture-warning', message: 'fixture warning' }]
+});
+assert.deepStrictEqual({
+  prelim: mappedTaskData.factPrelimAnalysisDays,
+  final: mappedTaskData.factFinalAnalysisDays,
+  dev: mappedTaskData.factDevDays,
+  accept: mappedTaskData.factAcceptanceDays,
+  stab: mappedTaskData.factStabilizationDays,
+  management: mappedTaskData.factManagementDays,
+  total: mappedTaskData.factTotalDays,
+  quality: mappedTaskData.sourceQuality,
+  warnings: mappedTaskData.expansionWarnings
+}, {
+  prelim: 1,
+  final: 2,
+  dev: 4,
+  accept: 3,
+  stab: 4,
+  management: 1,
+  total: 15,
+  quality: 'ready',
+  warnings: [{ code: 'fixture-warning', message: 'fixture warning' }]
+});
+console.log('PASS: calculator phase results map to taskData without double-counting management');

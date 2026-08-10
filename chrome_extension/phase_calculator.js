@@ -120,6 +120,43 @@ function emptyResult(source, settings) {
   };
 }
 
+function normalizeAgGridRequest(parsed) {
+  if (!parsed || !Array.isArray(parsed.categories) || !parsed.categories.length) return null;
+  return {
+    taskId: parsed.taskId || null,
+    sourceQuality: parsed.sourceQuality || 'partial',
+    grid: parsed.grid || {},
+    milestones: Array.isArray(parsed.milestones) ? parsed.milestones : [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.slice() : [],
+    categories: parsed.categories.map((category, index) => Object.assign({}, category, {
+      key: /управлен|управление/i.test(String(category.name || '')) ? 'management' : (category.key || category.name || `category-${index}`),
+      name: category.name || category.key || `category-${index}`,
+      hours: category.hours !== undefined ? category.hours : category.factHours,
+      worklogs: Array.isArray(category.worklogs) ? category.worklogs.map((worklog) => Object.assign({}, worklog)) : []
+    }))
+  };
+}
+
+function applyPhaseResultToTaskData(taskData, result) {
+  if (!taskData || !result || !result.phases || !result.totals) return taskData;
+  const fact = (phase) => Number(result.phases[phase] && result.phases[phase].fact) || 0;
+  const management = Object.entries((result.phases.dev && result.phases.dev.details) || {})
+    .filter(([key]) => /management|управлен|управление/i.test(key))
+    .reduce((total, [, days]) => total + (Number(days) || 0), 0);
+  const round = (value) => Math.round(value * 10) / 10;
+
+  taskData.factPrelimAnalysisDays = round(fact('po'));
+  taskData.factFinalAnalysisDays = round(fact('oa'));
+  taskData.factDevDays = round(Math.max(0, fact('dev') - management));
+  taskData.factAcceptanceDays = round(fact('accept'));
+  taskData.factStabilizationDays = round(fact('stab'));
+  taskData.factManagementDays = round(management);
+  taskData.factTotalDays = round(Number(result.totals.fact) || 0);
+  taskData.sourceQuality = result.sourceQuality || 'unknown';
+  taskData.expansionWarnings = Array.isArray(result.warnings) ? result.warnings.slice() : [];
+  return taskData;
+}
+
 function calculatePlanFact(request, options) {
   const source = request || {};
   const settings = Object.assign({ hoursPerDay: 8, slaDays: 5 }, options || {});
@@ -204,4 +241,7 @@ function calculateSla(source, points, slaDays) {
   return { status: durationDays > slaDays ? 'danger' : 'ok', durationDays, slaDays };
 }
 
-module.exports = { calculatePlanFact, resolvePhase };
+const api = { calculatePlanFact, resolvePhase, normalizeAgGridRequest, applyPhaseResultToTaskData };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+if (typeof window !== 'undefined') window.TrackStudioPhaseCalculator = api;

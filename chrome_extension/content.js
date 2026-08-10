@@ -367,6 +367,38 @@
     status.innerText = `Источник AG Grid: ${taskData.sourceQuality}.${warningText}`;
   }
 
+  function applyAgGridCalculation(parsed, additionalWarnings) {
+    const parserModule = (typeof window !== 'undefined' && window.TrackStudioParser) ? window.TrackStudioParser : null;
+    const calculator = (typeof window !== 'undefined' && window.TrackStudioPhaseCalculator) ? window.TrackStudioPhaseCalculator : null;
+    const warnings = Array.isArray(additionalWarnings) ? additionalWarnings.slice() : [];
+
+    if (!parserModule || !calculator || !calculator.normalizeAgGridRequest || !calculator.calculatePlanFact || !calculator.applyPhaseResultToTaskData) {
+      taskData.expansionWarnings = warnings.concat({ code: 'phase-calculator-unavailable', message: 'AG Grid phase calculator is not loaded; legacy calculation was kept.' });
+      renderExpansionStatus('Расчет AG Grid недоступен: сохранен legacy fallback.');
+      return false;
+    }
+
+    const source = parsed || parserModule.parseAgGrid(document, { taskId: taskData.id });
+    const normalized = calculator.normalizeAgGridRequest(source);
+    if (!normalized) {
+      taskData.expansionWarnings = warnings.concat((source && source.warnings) || [], { code: 'normalized-request-empty', message: 'AG Grid result was empty; legacy calculation was kept.' });
+      renderExpansionStatus('AG Grid не вернул категории: сохранен legacy fallback.');
+      return false;
+    }
+
+    try {
+      const result = calculator.calculatePlanFact(normalized);
+      calculator.applyPhaseResultToTaskData(taskData, result);
+      taskData.expansionWarnings = warnings.concat(result.warnings || []);
+      renderExpansionStatus();
+      return true;
+    } catch (error) {
+      taskData.expansionWarnings = warnings.concat({ code: 'phase-calculation-failed', message: 'AG Grid phase calculation failed; legacy calculation was kept.' });
+      renderExpansionStatus('Расчет AG Grid завершился с предупреждением: сохранен legacy fallback.');
+      return false;
+    }
+  }
+
   async function expandAndRecalculate() {
     const button = document.getElementById('cyberos-btn-expand-recalculate');
     const parserModule = (typeof window !== 'undefined' && window.TrackStudioParser) ? window.TrackStudioParser : null;
@@ -385,10 +417,9 @@
     try {
       const expansion = await parserModule.expandContractedGroups(document, {});
       const parsed = parserModule.parseAgGrid(document, { taskId: taskData.id });
-      taskData.sourceQuality = parsed.sourceQuality || 'unknown';
       taskData.expansionWarnings = (expansion.warnings || []).concat(parsed.warnings || []);
 
-      parseTrackStudioAutoFetchPlan();
+      parseTrackStudioAutoFetchPlan(parsed, taskData.expansionWarnings);
       renderValues();
       renderExpansionStatus(`Групп раскрыто: ${expansion.expandedCount}.${taskData.expansionWarnings.length ? ` Предупреждений: ${taskData.expansionWarnings.length}.` : ''}`);
     } catch (error) {
@@ -418,7 +449,7 @@
     return { dateObj: dt, str: formattedStr };
   }
 
-  function parseTrackStudioAutoFetchPlan() {
+  function parseTrackStudioAutoFetchPlan(agGridParsed, agGridWarnings) {
     try {
       const match = window.location.href.match(/\b(\d{6,7})\b/) || window.location.href.match(/\/task\/(\d+)/);
       if (match) {
@@ -895,6 +926,7 @@
         taskData.dateTransfer = foundDates[0];
       }
 
+      applyAgGridCalculation(agGridParsed, agGridWarnings);
       renderValues();
     } catch (err) {
       console.warn("⚠️ CyberOS TrackStudio Helper error in DOM parsing:", err);
