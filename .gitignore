@@ -1,0 +1,30 @@
+# Environment and secrets
+.env
+*.env
+*.pem
+*.key
+credentials.json
+token.json
+client_secret*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Data exports and caches (Large JSONs)
+*.json
+!manifest.json
+!package.json
+ts_export.json
+*.log
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

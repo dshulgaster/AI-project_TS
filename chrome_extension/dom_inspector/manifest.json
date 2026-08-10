@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "TrackStudio DOM Inspector (temporary)",
+  "version": "0.1.0",
+  "description": "Local diagnostic inspector for TrackStudio page structure.",
+  "permissions": ["activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Inspect TrackStudio DOM"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://cdp.colvir.ru/TrackStudio/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
