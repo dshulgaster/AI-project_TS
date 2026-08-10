@@ -21,9 +21,18 @@ function asDate(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value !== 'string') return null;
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (match) {
+    const parsed = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    if (parsed.getUTCFullYear() === Number(match[1]) && parsed.getUTCMonth() === Number(match[2]) - 1 && parsed.getUTCDate() === Number(match[3])) return parsed;
+    return null;
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dateState(value) {
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return 'missing';
+  return asDate(value) ? 'valid' : 'malformed';
 }
 
 function milestoneDate(milestones, operationNames, objectNames) {
@@ -61,8 +70,11 @@ function categoryDefaultPhase(category) {
 }
 
 function resolvePhase(worklog, category, milestones) {
-  const date = asDate(worklog && (worklog.date || worklog.loggedAt || worklog.worklogDate));
-  if (!date) return categoryDefaultPhase(category || {});
+  const value = worklog && (worklog.date !== undefined ? worklog.date : worklog.loggedAt !== undefined ? worklog.loggedAt : worklog.worklogDate);
+  const state = dateState(value);
+  if (state === 'missing') return categoryDefaultPhase(category || {});
+  if (state === 'malformed') return null;
+  const date = asDate(value);
   const points = getMilestones(milestones);
   if (points.release && date > points.release) return 'stab';
   if (points.accept && date > points.accept) return 'accept';
@@ -95,12 +107,25 @@ function warningText(warning) {
   return typeof warning === 'string' ? warning : String(warning && (warning.message || warning.code) || 'warning');
 }
 
+function emptyResult(source, settings) {
+  const points = getMilestones(source.milestones);
+  return {
+    phases: { po: {}, oa: {}, dev: {}, accept: {}, stab: {} },
+    totals: { plan: 0, fact: 0, variance: 0 },
+    variances: { po: 0, oa: 0, dev: 0, accept: 0, stab: 0 },
+    sourceQuality: 'error',
+    poSla: calculateSla(source, points, settings.slaDays),
+    warnings: Array.isArray(source.warnings) ? source.warnings.slice() : [],
+    trace: { excludedParents: [], fallbacks: [] }
+  };
+}
+
 function calculatePlanFact(request, options) {
   const source = request || {};
   const settings = Object.assign({ hoursPerDay: 8, slaDays: 5 }, options || {});
   const categories = Array.isArray(source.categories) ? source.categories : [];
   if (!categories.length) {
-    return { phases: { po: {}, oa: {}, dev: {}, accept: {}, stab: {} }, sourceQuality: source.sourceQuality || 'expanded', warnings: source.warnings || [], trace: { excludedParents: [], fallbacks: [] } };
+    return emptyResult(source, settings);
   }
 
   const points = getMilestones(source.milestones);
@@ -130,9 +155,14 @@ function calculatePlanFact(request, options) {
         malformed++;
         return;
       }
-      const hasDate = Boolean(asDate(worklog.date || worklog.loggedAt || worklog.worklogDate));
+      const dateValue = worklog.date !== undefined ? worklog.date : worklog.loggedAt !== undefined ? worklog.loggedAt : worklog.worklogDate;
+      const dateStatus = dateState(dateValue);
+      if (dateStatus === 'malformed') {
+        malformed++;
+        return;
+      }
       const phase = resolvePhase(worklog, category, source.milestones);
-      if (!hasDate) {
+      if (dateStatus === 'missing') {
         fallbackUsed = true;
         trace.fallbacks.push({ category: key, defaultPhase: categoryPhase });
       }
@@ -157,10 +187,11 @@ function calculatePlanFact(request, options) {
   if (missingMilestones) warnings.push('missing milestones');
   if (fallbackUsed) warnings.push('defaultPhase fallback used');
   if (malformed) warnings.push(`${malformed} malformed row(s)`);
-  let quality = source.sourceQuality || 'expanded';
-  if (malformed || warnings.some((warning) => warningText(warning).includes('expansion'))) quality = 'warning';
-  else if (fallbackUsed) quality = 'fallback';
-  else if (missingMilestones) quality = 'partial';
+  const sourceQuality = ['ready', 'partial', 'warning', 'error'].includes(source.sourceQuality) ? source.sourceQuality : null;
+  let quality = 'ready';
+  if (sourceQuality === 'error') quality = 'error';
+  else if (malformed || sourceQuality === 'warning' || warnings.some((warning) => warningText(warning).includes('expansion'))) quality = 'warning';
+  else if (fallbackUsed || missingMilestones || sourceQuality === 'partial') quality = 'partial';
   return { phases: data, totals, variances, sourceQuality: quality, poSla, warnings, trace };
 }
 

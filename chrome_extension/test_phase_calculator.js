@@ -5,7 +5,7 @@ console.log('Running phase_calculator.js contract tests...\n');
 
 const normalizedRequest = {
   taskId: 'fixture-task',
-  sourceQuality: 'expanded',
+  sourceQuality: 'ready',
   grid: { selector: '.ag-root', visibleRows: 1, virtualized: true },
   categories: [],
   milestones: [],
@@ -16,7 +16,10 @@ const result = phaseCalculator.calculatePlanFact(normalizedRequest);
 
 assert.deepStrictEqual(result, {
   phases: { po: {}, oa: {}, dev: {}, accept: {}, stab: {} },
-  sourceQuality: 'expanded',
+  totals: { plan: 0, fact: 0, variance: 0 },
+  variances: { po: 0, oa: 0, dev: 0, accept: 0, stab: 0 },
+  sourceQuality: 'error',
+  poSla: { status: 'ok', durationDays: null, slaDays: 5 },
   warnings: [],
   trace: { excludedParents: [], fallbacks: [] }
 });
@@ -56,14 +59,14 @@ assert.deepStrictEqual(factByPhase(phaseCalculator.calculatePlanFact(requestWith
 console.log('PASS: interval boundaries are inclusive on the right');
 
 const fallbackResult = phaseCalculator.calculatePlanFact({
-  sourceQuality: 'aggregated',
+  sourceQuality: 'partial',
   categories: [{ key: 'analyst', name: 'Аналитика', defaultPhase: 'po', factDays: 2 }],
   milestones: [],
   warnings: []
 });
 assert.strictEqual(fallbackResult.phases.po.fact, 2);
 assert.strictEqual(fallbackResult.trace.fallbacks[0].defaultPhase, 'po');
-assert.strictEqual(fallbackResult.sourceQuality, 'fallback');
+assert.strictEqual(fallbackResult.sourceQuality, 'partial');
 console.log('PASS: undated aggregates use defaultPhase and trace the fallback');
 
 const doubleCountingResult = phaseCalculator.calculatePlanFact({
@@ -108,3 +111,28 @@ const qualityResult = phaseCalculator.calculatePlanFact({
 assert.strictEqual(qualityResult.sourceQuality, 'warning');
 assert(qualityResult.warnings.length >= 2);
 console.log('PASS: malformed rows and expansion failures lower quality');
+
+const readyResult = phaseCalculator.calculatePlanFact(requestWithWorklogs([
+  { taskId: 'dated', hours: 8, date: '2026-08-10' }
+]));
+assert.strictEqual(readyResult.sourceQuality, 'ready');
+console.log('PASS: complete dated source with all milestones is ready');
+
+const partialResult = phaseCalculator.calculatePlanFact(requestWithWorklogs([
+  { taskId: 'undated', hours: 8 }
+], { milestones: [{ operation: 'ПО', date: '2026-08-01' }] }));
+assert.strictEqual(partialResult.sourceQuality, 'partial');
+console.log('PASS: fallback or missing milestones produce partial quality');
+
+const malformedDateResult = phaseCalculator.calculatePlanFact(requestWithWorklogs([
+  { taskId: 'malformed-date', hours: 8, date: '2026-02-30' }
+]));
+assert.strictEqual(malformedDateResult.sourceQuality, 'warning');
+assert(malformedDateResult.warnings.some((warning) => String(warning).includes('malformed')));
+assert.strictEqual(malformedDateResult.trace.fallbacks.length, 0);
+console.log('PASS: non-empty invalid dates are malformed, not defaultPhase fallbacks');
+
+const impossibleResult = phaseCalculator.calculatePlanFact({ request: {}, categories: [] });
+assert.strictEqual(impossibleResult.sourceQuality, 'error');
+assert.deepStrictEqual(Object.keys(impossibleResult), ['phases', 'totals', 'variances', 'sourceQuality', 'poSla', 'warnings', 'trace']);
+console.log('PASS: impossible empty source keeps the complete result contract');
