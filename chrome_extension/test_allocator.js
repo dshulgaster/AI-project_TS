@@ -1,5 +1,7 @@
 // Unit Test Suite for allocator.js (Superpowers TDD Framework)
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const allocator = require('./allocator.js');
 
 console.log('🧪 Running allocator.js unit tests...\n');
@@ -16,6 +18,37 @@ function test(name, fn) {
     process.exit(1);
   }
 }
+
+test('AG Grid fixtures contain only sanitized structural fields', () => {
+  const fixtureNames = [
+    'ag-grid-contracted.json',
+    'ag-grid-expanded.json',
+    'ag-grid-duplicate-wrappers.json'
+  ];
+  const rowFields = ['rowClass', 'rowIndex', 'cells'];
+  const cellFields = ['cellClass', 'numericFingerprint', 'phaseHint', 'date'];
+
+  fixtureNames.forEach((fixtureName) => {
+    const fixturePath = path.join(__dirname, 'fixtures', fixtureName);
+    const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+
+    assert.deepStrictEqual(Object.keys(fixture), ['rows']);
+    assert(Array.isArray(fixture.rows));
+    fixture.rows.forEach((row) => {
+      assert.deepStrictEqual(Object.keys(row).sort(), rowFields.sort());
+      assert.strictEqual(typeof row.rowClass, 'string');
+      assert(Number.isInteger(row.rowIndex));
+      assert(Array.isArray(row.cells));
+      row.cells.forEach((cell) => {
+        assert.deepStrictEqual(Object.keys(cell).sort(), cellFields.sort());
+        assert.strictEqual(typeof cell.cellClass, 'string');
+        assert.strictEqual(typeof cell.numericFingerprint, 'number');
+        assert(cell.phaseHint === null || typeof cell.phaseHint === 'string');
+        assert(cell.date === null || /^\d{4}-\d{2}-\d{2}$/.test(cell.date));
+      });
+    });
+  });
+});
 
 // Test 1: Date Parsing
 test('parseDateFromText parses DD.MM.YYYY correctly', () => {

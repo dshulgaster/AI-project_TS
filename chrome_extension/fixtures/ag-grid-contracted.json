@@ -1,0 +1,22 @@
+{
+  "rows": [
+    {
+      "rowClass": "ag-row ag-row-level-0",
+      "rowIndex": 0,
+      "cells": [
+        {
+          "cellClass": "ag-cell ag-column-first",
+          "numericFingerprint": 4.2,
+          "phaseHint": "po",
+          "date": null
+        },
+        {
+          "cellClass": "ag-cell ag-column-hours",
+          "numericFingerprint": 4.2,
+          "phaseHint": null,
+          "date": null
+        }
+      ]
+    }
+  ]
+}

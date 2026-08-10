@@ -1,0 +1,28 @@
+{
+  "rows": [
+    {
+      "rowClass": "ag-row-wrapper ag-row-wrapper ag-row-level-0",
+      "rowIndex": 0,
+      "cells": [
+        {
+          "cellClass": "ag-cell ag-cell-wrapper ag-cell-wrapper",
+          "numericFingerprint": 1.25,
+          "phaseHint": "oa",
+          "date": "2026-08-05"
+        }
+      ]
+    },
+    {
+      "rowClass": "ag-row-wrapper ag-row-wrapper ag-row-level-1",
+      "rowIndex": 1,
+      "cells": [
+        {
+          "cellClass": "ag-cell ag-cell-wrapper ag-cell-wrapper",
+          "numericFingerprint": 0.75,
+          "phaseHint": "dev",
+          "date": "2026-08-06"
+        }
+      ]
+    }
+  ]
+}
