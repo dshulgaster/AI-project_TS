@@ -1,17 +1,17 @@
 {
   "rows": [
     {
-      "rowClass": "ag-row ag-row-level-0",
+      "rowClass": "ag-row ag-row-level-0 ag-row-group ag-row-group-contracted",
       "rowIndex": 0,
       "cells": [
         {
-          "cellClass": "ag-cell ag-column-first",
+          "cellClass": "ag-cell ag-row-group-cell ag-group-value",
           "numericFingerprint": 4.2,
           "phaseHint": "po",
           "date": null
         },
         {
-          "cellClass": "ag-cell ag-column-hours",
+          "cellClass": "ag-cell ag-group-child-count",
           "numericFingerprint": 4.2,
           "phaseHint": null,
           "date": null

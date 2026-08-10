@@ -1,11 +1,11 @@
 {
   "rows": [
     {
-      "rowClass": "ag-row ag-row-level-0",
+      "rowClass": "ag-row ag-row-level-0 ag-row-group",
       "rowIndex": 0,
       "cells": [
         {
-          "cellClass": "ag-cell ag-column-group",
+          "cellClass": "ag-cell ag-group-value",
           "numericFingerprint": 6.5,
           "phaseHint": null,
           "date": null
@@ -17,7 +17,7 @@
       "rowIndex": 1,
       "cells": [
         {
-          "cellClass": "ag-cell ag-column-hours",
+          "cellClass": "ag-cell ag-column-task",
           "numericFingerprint": 2.5,
           "phaseHint": "dev",
           "date": "2026-08-10"
@@ -29,7 +29,7 @@
       "rowIndex": 2,
       "cells": [
         {
-          "cellClass": "ag-cell ag-column-hours",
+          "cellClass": "ag-cell ag-column-date",
           "numericFingerprint": 4,
           "phaseHint": "accept",
           "date": "2026-08-15"

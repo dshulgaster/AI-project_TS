@@ -1,11 +1,11 @@
 {
   "rows": [
     {
-      "rowClass": "ag-row-wrapper ag-row-wrapper ag-row-level-0",
+      "rowClass": "ag-row ag-row-level-0 ag-row-group",
       "rowIndex": 0,
       "cells": [
         {
-          "cellClass": "ag-cell ag-cell-wrapper ag-cell-wrapper",
+          "cellClass": "ag-cell ag-group-value ag-cell-wrapper",
           "numericFingerprint": 1.25,
           "phaseHint": "oa",
           "date": "2026-08-05"
@@ -13,11 +13,11 @@
       ]
     },
     {
-      "rowClass": "ag-row-wrapper ag-row-wrapper ag-row-level-1",
+      "rowClass": "ag-row ag-row-level-1",
       "rowIndex": 1,
       "cells": [
         {
-          "cellClass": "ag-cell ag-cell-wrapper ag-cell-wrapper",
+          "cellClass": "ag-cell ag-column-hours ag-cell-wrapper",
           "numericFingerprint": 0.75,
           "phaseHint": "dev",
           "date": "2026-08-06"
