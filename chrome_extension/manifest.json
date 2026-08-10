@@ -34,6 +34,7 @@
       ],
       "js": [
         "allocator.js",
+        "ag_grid_parser.js",
         "content.js"
       ],
       "run_at": "document_idle"

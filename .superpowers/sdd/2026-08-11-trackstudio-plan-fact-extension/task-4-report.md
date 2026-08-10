@@ -18,8 +18,25 @@
 
 ## Commit
 
-Fix commit message: `fix: address Task 4 expansion findings`
+Fix commit message: `fix: wire AG Grid parser into extension`
 
 ## Concern
 
-The current manifest still loads the legacy content script without `ag_grid_parser.js`; the hook reports parser-unavailable until the planned browser-side module loading migration includes the parser.
+The manifest load order blocker is fixed: `ag_grid_parser.js` now loads before `content.js`.
+
+## Load-order Fix Report
+
+### Change
+
+- Added `ag_grid_parser.js` to `chrome_extension/manifest.json` between `allocator.js` and `content.js`.
+
+### Verification
+
+- PowerShell `Get-Content .\manifest.json -Raw | ConvertFrom-Json`: PASS.
+- Verified content script order: `allocator.js -> ag_grid_parser.js -> content.js`: PASS.
+- `node --check .\background.js`: PASS.
+- `node --check .\content.js`: PASS.
+- `node --check .\ag_grid_parser.js`: PASS.
+- `node .\test_ag_grid_parser.js`: PASS, 10 checks.
+- `node .\test_phase_calculator.js`: PASS, 10 checks.
+- `node .\test_allocator.js`: PASS, 6 checks.
