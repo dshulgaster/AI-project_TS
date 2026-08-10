@@ -189,4 +189,13 @@
   exports.getPhaseForDate = getPhaseForDate;
   exports.allocateSubtasks = allocateSubtasks;
 
+  // Pure-калькулятор доступен потребителям Node без удаления старых экспортов.
+  if (typeof require === 'function') {
+    try {
+      const phaseCalculator = require('./phase_calculator.js');
+      exports.calculatePlanFact = phaseCalculator.calculatePlanFact;
+      exports.resolvePhase = phaseCalculator.resolvePhase;
+    } catch (error) {}
+  }
+
 })(typeof exports !== 'undefined' ? exports : (window.Allocator = {}));
