@@ -198,5 +198,95 @@
     };
   }
 
+  function firstGroupCell(row) {
+    return row.querySelector('.ag-cell.ag-row-group-cell, .ag-row-group-cell, .ag-cell');
+  }
+
+  function hasClassName(node, className) {
+    return node && String(node.className || '').split(/\s+/).includes(className);
+  }
+
+  function contractedControl(row) {
+    if (!hasClassName(row, 'ag-row-group-contracted')) return null;
+    const groupCell = firstGroupCell(row);
+    if (!groupCell) return null;
+    if (hasClassName(groupCell, 'ag-group-contracted') || hasClassName(groupCell, 'ag-row-group-contracted')) return groupCell;
+    return groupCell.querySelector('.ag-group-contracted, .ag-row-group-contracted');
+  }
+
+  function expansionTarget(documentLike, attempted) {
+    const roots = asArray(documentLike.querySelectorAll('.ag-root[role="grid"]')).filter(isVisible);
+    const gridNode = roots[0] || asArray(documentLike.querySelectorAll('.ag-root')).filter(isVisible)[0];
+    if (!gridNode) return null;
+    return asArray(gridNode.querySelectorAll('.ag-row')).map((row) => ({
+      row,
+      control: contractedControl(row)
+    })).find((item) => item.control && (!attempted || !attempted.has(item.control))) || null;
+  }
+
+  function waitForGroupMutation(target, options) {
+    const MutationObserverCtor = options.MutationObserver || (typeof MutationObserver !== 'undefined' ? MutationObserver : null);
+    if (!MutationObserverCtor) {
+      return Promise.resolve({ changed: false, warning: { code: 'mutation-observer-unavailable', message: 'MutationObserver was not available for AG Grid expansion.' } });
+    }
+
+    const timeoutMs = options.timeoutMs;
+    const setTimer = options.setTimeout || setTimeout;
+    const clearTimer = options.clearTimeout || clearTimeout;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const observer = new MutationObserverCtor(() => {
+        if (settled) return;
+        settled = true;
+        clearTimer(timer);
+        observer.disconnect();
+        resolve({ changed: true });
+      });
+      const timer = setTimer(() => {
+        if (settled) return;
+        settled = true;
+        observer.disconnect();
+        resolve({ changed: false, warning: { code: 'expansion-timeout', rowIndex: rowIndexOf(target.row), message: 'AG Grid did not render a change after group expansion.' } });
+      }, timeoutMs);
+      observer.observe(target.row, { childList: true, attributes: true, subtree: true });
+      try {
+        target.control.click();
+      } catch (error) {
+        if (settled) return;
+        settled = true;
+        clearTimer(timer);
+        observer.disconnect();
+        resolve({ changed: false, warning: { code: 'expansion-failed', rowIndex: rowIndexOf(target.row), message: 'A group expansion control could not be clicked.' } });
+      }
+    });
+  }
+
+  async function expandContractedGroups(documentLike, options) {
+    const config = Object.assign({ timeoutMs: 1500, maxGroups: 20 }, options || {});
+    const attempted = new Set();
+    const result = { expandedCount: 0, failedGroups: [], warnings: [] };
+
+    while (attempted.size < config.maxGroups) {
+      const target = expansionTarget(documentLike, attempted);
+      if (!target) break;
+      attempted.add(target.control);
+
+      const rowIndex = rowIndexOf(target.row);
+      const mutation = await waitForGroupMutation(target, config);
+      if (mutation.warning) {
+        result.failedGroups.push({ rowIndex });
+        result.warnings.push(mutation.warning);
+      }
+      if (mutation.changed) result.expandedCount += 1;
+    }
+
+    if (attempted.size >= config.maxGroups && expansionTarget(documentLike, attempted)) {
+      result.warnings.push({ code: 'expansion-limit', message: 'The AG Grid expansion limit was reached.' });
+    }
+    return result;
+  }
+
   exports.parseAgGrid = parseAgGrid;
+  exports.expandContractedGroups = expandContractedGroups;
 })(typeof exports !== 'undefined' ? exports : (window.TrackStudioParser = {}));

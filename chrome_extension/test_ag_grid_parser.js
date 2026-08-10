@@ -10,6 +10,8 @@ class FakeNode {
     this.attributes = Object.assign({}, attrs);
     this.textContent = text;
     this.children = children;
+    this.clicked = 0;
+    this.clickHandler = null;
     this.children.forEach((child) => { child.parentNode = this; });
   }
 
@@ -43,6 +45,11 @@ class FakeNode {
 
   querySelector(selector) {
     return this.querySelectorAll(selector)[0] || null;
+  }
+
+  click() {
+    this.clicked += 1;
+    if (this.clickHandler) this.clickHandler();
   }
 }
 
@@ -89,14 +96,15 @@ function sanitizedGrid(name, role) {
   return grid(rows, role === undefined ? {} : { role });
 }
 
+let testChain = Promise.resolve();
 function run(name, fn) {
-  try {
-    fn();
+  testChain = testChain.then(() => fn()).then(() => {
     console.log(`PASS: ${name}`);
-  } catch (error) {
+  }).catch((error) => {
     console.error(`FAIL: ${name}`);
+    console.error(error);
     throw error;
-  }
+  });
 }
 
 run('selects one effective role grid instead of wrapper duplicates', () => {
@@ -209,4 +217,92 @@ run('deduplicates conflicting duplicates by row index and class fingerprint in o
   assert.strictEqual(result.categories[1].name, 'Отдельная строка');
 });
 
-console.log('ALL AG GRID PARSER TESTS PASSED');
+run('expands only confirmed contracted group controls', async () => {
+  const unrelated = new FakeNode({ className: 'ag-row-group-contracted', text: 'Не группа' });
+  const groupControl = new FakeNode({ className: 'ag-group-contracted' });
+  const group = row(20, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
+    new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [groupControl] }),
+    cell('ag-group-value', 'Разработка'),
+    cell('ag-group-child-count', '(1)')
+  ]);
+  const documentLike = new FakeDocument([grid([group]), unrelated]);
+
+  const result = await parser.expandContractedGroups(documentLike, {
+    timeoutMs: 10,
+    maxGroups: 1,
+    MutationObserver: class {
+      observe() {}
+      disconnect() {}
+    }
+  });
+
+  assert.strictEqual(groupControl.clicked, 1);
+  assert.strictEqual(unrelated.clicked, 0);
+  assert.strictEqual(result.expandedCount, 0);
+  assert.strictEqual(result.failedGroups.length, 1);
+});
+
+run('waits for mutations, stops on no change, and isolates group failures', async () => {
+  const observers = [];
+  class FakeMutationObserver {
+    constructor(callback) { this.callback = callback; observers.push(this); }
+    observe() {}
+    disconnect() { this.disconnected = true; }
+  }
+
+  const changedControl = new FakeNode({ className: 'ag-group-contracted' });
+  const unchangedControl = new FakeNode({ className: 'ag-group-contracted' });
+  const throwingControl = new FakeNode({ className: 'ag-group-contracted' });
+  throwingControl.click = () => { throw new Error('click failed'); };
+  const groups = [changedControl, unchangedControl, throwingControl].map((control, index) => row(index + 1, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
+    new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [control] }),
+    cell('ag-group-value', `Группа ${index + 1}`),
+    cell('ag-group-child-count', '(1)')
+  ]));
+  const documentLike = new FakeDocument([grid(groups)]);
+  const timers = [];
+
+  const expansion = parser.expandContractedGroups(documentLike, {
+    timeoutMs: 25,
+    maxGroups: 2,
+    MutationObserver: FakeMutationObserver,
+    setTimeout(callback) { timers.push(callback); return timers.length; },
+    clearTimeout() {}
+  });
+
+  assert.strictEqual(observers.length, 1);
+  observers[0].callback([{ type: 'childList' }]);
+  timers.shift()();
+  await Promise.resolve();
+  timers.shift()();
+  const expansionResult = await expansion;
+  assert.strictEqual(expansionResult.expandedCount, 1);
+  assert.strictEqual(changedControl.clicked, 1);
+  assert.strictEqual(unchangedControl.clicked, 1);
+  assert.strictEqual(throwingControl.clicked, 0);
+});
+
+run('respects the expansion limit', async () => {
+  const controls = [1, 2, 3].map((index) => new FakeNode({ className: 'ag-group-contracted', attrs: { 'data-index': String(index) } }));
+  const groups = controls.map((control, index) => row(index + 1, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
+    new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [control] }),
+    cell('ag-group-value', `Группа ${index + 1}`),
+    cell('ag-group-child-count', '(1)')
+  ]));
+  const result = await parser.expandContractedGroups(new FakeDocument([grid(groups)]), {
+    timeoutMs: 1,
+    maxGroups: 2,
+    MutationObserver: class { observe() {} disconnect() {} }
+  });
+
+  assert.strictEqual(controls[0].clicked, 1);
+  assert.strictEqual(controls[1].clicked, 1);
+  assert.strictEqual(controls[2].clicked, 0);
+  assert.strictEqual(result.warnings.some((warning) => warning.code === 'expansion-limit'), true);
+});
+
+testChain.then(() => {
+  console.log('ALL AG GRID PARSER TESTS PASSED');
+}).catch(() => {
+  process.exitCode = 1;
+});

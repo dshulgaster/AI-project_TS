@@ -62,6 +62,8 @@
     factManagementDays: 0,
     factTotalDays: 0,
     factPaginationDeltaDays: 0,
+    sourceQuality: 'legacy',
+    expansionWarnings: [],
     dateTransfer: '-',
     datePrelimAgree: '-',
     dateFinalAgree: '-',
@@ -248,6 +250,10 @@
         <button class="cyberos-btn cyberos-btn-secondary" id="cyberos-btn-copy">
           📋 Скопировать отчет для Notion
         </button>
+        <button class="cyberos-btn cyberos-btn-secondary" id="cyberos-btn-expand-recalculate">
+          ↻ Раскрыть и пересчитать
+        </button>
+        <div id="cyberos-expansion-status" style="font-size:10px; color:#94a3b8; margin-top:6px;"></div>
       </div>
     `;
 
@@ -268,6 +274,7 @@
     document.getElementById('cyberos-btn-unit-days').addEventListener('click', () => setUnit('days'));
     document.getElementById('cyberos-btn-export').addEventListener('click', exportToExcelXLS);
     document.getElementById('cyberos-btn-copy').addEventListener('click', copyForNotion);
+    document.getElementById('cyberos-btn-expand-recalculate').addEventListener('click', expandAndRecalculate);
 
     renderValues();
   }
@@ -359,6 +366,54 @@
         } catch (e) {}
       }
     });
+  }
+
+  function renderExpansionStatus(message) {
+    const status = document.getElementById('cyberos-expansion-status');
+    if (!status) return;
+    if (message) {
+      status.innerText = message;
+      return;
+    }
+    const warningCount = taskData.expansionWarnings.length;
+    const warningText = warningCount ? ` Предупреждений: ${warningCount}.` : '';
+    status.innerText = `Источник AG Grid: ${taskData.sourceQuality}.${warningText}`;
+  }
+
+  async function expandAndRecalculate() {
+    const button = document.getElementById('cyberos-btn-expand-recalculate');
+    const parserModule = (typeof window !== 'undefined' && window.TrackStudioParser) ? window.TrackStudioParser : null;
+    if (!parserModule || !parserModule.expandContractedGroups || !parserModule.parseAgGrid) {
+      taskData.expansionWarnings = [{ code: 'parser-unavailable', message: 'AG Grid parser is not loaded in the legacy content script.' }];
+      renderExpansionStatus('Раскрытие недоступно: parser AG Grid не загружен.');
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.innerText = '⏳ Раскрытие...';
+    }
+    renderExpansionStatus('Загрузка: раскрытие групп AG Grid...');
+
+    try {
+      const expansion = await parserModule.expandContractedGroups(document, {});
+      const parsed = parserModule.parseAgGrid(document, { taskId: taskData.id });
+      taskData.sourceQuality = parsed.sourceQuality || 'unknown';
+      taskData.expansionWarnings = (expansion.warnings || []).concat(parsed.warnings || []);
+
+      parseTrackStudioAutoFetchPlan();
+      renderValues();
+      renderExpansionStatus(`Групп раскрыто: ${expansion.expandedCount}.${taskData.expansionWarnings.length ? ` Предупреждений: ${taskData.expansionWarnings.length}.` : ''}`);
+    } catch (error) {
+      taskData.expansionWarnings = [{ code: 'expansion-orchestration-failed', message: 'Explicit AG Grid recalculation failed.' }];
+      renderValues();
+      renderExpansionStatus('Пересчет завершился с предупреждением.');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerText = '↻ Раскрыть и пересчитать';
+      }
+    }
   }
 
   chrome.runtime.onMessage.addListener((request) => {
@@ -993,6 +1048,7 @@
 
       renderDetailsBreakdown(fmt, isOnlyOneReleaseItemInPlan);
       renderTimelineAndSLA();
+      renderExpansionStatus();
     } catch (err) {
       console.warn("⚠️ CyberOS TrackStudio Helper error in rendering:", err);
     }
