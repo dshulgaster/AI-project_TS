@@ -23,3 +23,16 @@ AG Grid parser implemented with effective-grid selection, row normalization, ded
 
 - Parser is intentionally not wired into `content.js` or a widget in Task 3.
 - AG Grid virtualization means the result describes visible rows only; the parser marks the grid as virtualized.
+
+## Review Fix Report
+
+- Malformed non-header group/child rows now emit a `malformed-row` warning with only a row index and stable message; header rows remain ignored.
+- Visible fallback roots are selected by greatest DOM depth, with a regression test covering sibling roots at different nesting depths.
+- Parser tests now build DOM rows from all sanitized fixture fields, including `date`, `phaseHint`, and `numericFingerprint`, and assert normalized values.
+- Duplicate-wrapper coverage now uses multiple root candidates with conflicting duplicate content and verifies one logical row set plus the first valid row.
+
+### Verification
+
+- `node .\\test_ag_grid_parser.js`: PASS, 6 parser checks.
+- `node .\\test_allocator.js`: PASS.
+- `node .\\test_phase_calculator.js`: PASS.

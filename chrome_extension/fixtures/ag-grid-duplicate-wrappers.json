@@ -9,6 +9,12 @@
           "numericFingerprint": 1.25,
           "phaseHint": "oa",
           "date": "2026-08-05"
+        },
+        {
+          "cellClass": "ag-cell ag-group-child-count ag-cell-wrapper",
+          "numericFingerprint": 1.25,
+          "phaseHint": null,
+          "date": null
         }
       ]
     },
@@ -18,6 +24,18 @@
       "cells": [
         {
           "cellClass": "ag-cell ag-column-hours ag-cell-wrapper",
+          "numericFingerprint": 0.75,
+          "phaseHint": "dev",
+          "date": "2026-08-06"
+        },
+        {
+          "cellClass": "ag-cell ag-column-task ag-cell-wrapper",
+          "numericFingerprint": 0.75,
+          "phaseHint": "dev",
+          "date": "2026-08-06"
+        },
+        {
+          "cellClass": "ag-cell ag-column-date ag-cell-wrapper",
           "numericFingerprint": 0.75,
           "phaseHint": "dev",
           "date": "2026-08-06"

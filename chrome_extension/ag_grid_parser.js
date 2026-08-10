@@ -28,6 +28,20 @@
     return String(row.className || '').split(/\s+/).includes(className);
   }
 
+  function isHeaderRow(row) {
+    return hasClass(row, 'ag-header-row') || hasClass(row, 'ag-header-container');
+  }
+
+  function depthOf(node) {
+    let depth = 0;
+    let current = node;
+    while (current && current.parentNode) {
+      depth++;
+      current = current.parentNode;
+    }
+    return depth;
+  }
+
   function isVisible(node) {
     if (!node) return false;
     if (node.getAttribute('hidden') !== null || node.getAttribute('aria-hidden') === 'true') return false;
@@ -63,11 +77,13 @@
     const hoursText = asArray(row.querySelectorAll('.ag-column-hours, .ag-cell')).map(textOf).find((value) => hoursValue(value) !== null);
     const hours = hoursValue(hoursText || combined);
     if (!taskId || hours === null || !dateText || !dateValue(dateText)) return null;
+    const phaseCell = asArray(row.querySelectorAll('.ag-column-task, .ag-cell')).find((cell) => cell.getAttribute('data-phase-hint'));
+    const phaseHint = phaseCell ? phaseCell.getAttribute('data-phase-hint') || null : null;
     return {
       taskId,
       hours,
       date: dateValue(dateText),
-      phaseHint: null,
+      phaseHint,
       source: 'child-row'
     };
   }
@@ -99,7 +115,7 @@
 
     if (!gridNode) {
       const roots = asArray(documentLike.querySelectorAll('.ag-root')).filter(isVisible);
-      gridNode = roots[roots.length - 1];
+      gridNode = roots.reduce((deepest, root) => !deepest || depthOf(root) > depthOf(deepest) ? root : deepest, null);
       selector = '.ag-root';
       if (gridNode) warnings.push({ code: 'effective-grid-fallback', message: 'Effective AG Grid role was not found; used the most-specific root.' });
     }
@@ -123,6 +139,7 @@
 
     rows.forEach((row) => {
       try {
+        if (isHeaderRow(row)) return;
         const index = rowIndexOf(row);
         const fingerprint = `${index}|${String(row.className || '').split(/\s+/).sort().join('.')}`;
         if (seen.has(fingerprint)) return;
@@ -139,7 +156,10 @@
         }
 
         const worklog = childRow(row);
-        if (!worklog) return;
+        if (!worklog) {
+          warnings.push({ code: 'malformed-row', rowIndex: index, message: 'A visible AG Grid data row was incomplete.' });
+          return;
+        }
         seen.add(fingerprint);
         validRows++;
         const category = groupsByLevel[level - 1] || groupsByLevel[0];
@@ -151,14 +171,14 @@
         category.factHours += worklog.hours;
         category.expanded = true;
       } catch (error) {
-        warnings.push({ code: 'row-parse-failed', message: 'A visible AG Grid row could not be parsed.' });
+        warnings.push({ code: 'malformed-row', rowIndex: rowIndexOf(row), message: 'A visible AG Grid data row could not be parsed.' });
       }
     });
 
     const hasWorklogs = categories.some((category) => category.worklogs.length > 0);
     const hasAggregate = categories.some((category) => category.worklogs.length === 0);
     let sourceQuality = hasWorklogs && !hasAggregate ? 'expanded' : hasAggregate ? 'aggregated' : 'partial';
-    if (warnings.some((warning) => warning.code === 'row-parse-failed')) sourceQuality = 'partial';
+    if (warnings.some((warning) => warning.code === 'malformed-row')) sourceQuality = 'partial';
 
     return {
       taskId: config.taskId || null,

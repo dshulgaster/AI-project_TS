@@ -9,6 +9,12 @@
           "numericFingerprint": 6.5,
           "phaseHint": null,
           "date": null
+        },
+        {
+          "cellClass": "ag-cell ag-group-child-count",
+          "numericFingerprint": 6.5,
+          "phaseHint": null,
+          "date": null
         }
       ]
     },
@@ -21,6 +27,18 @@
           "numericFingerprint": 2.5,
           "phaseHint": "dev",
           "date": "2026-08-10"
+        },
+        {
+          "cellClass": "ag-cell ag-column-date",
+          "numericFingerprint": 2.5,
+          "phaseHint": "dev",
+          "date": "2026-08-10"
+        },
+        {
+          "cellClass": "ag-cell ag-column-hours",
+          "numericFingerprint": 2.5,
+          "phaseHint": "dev",
+          "date": "2026-08-10"
         }
       ]
     },
@@ -30,6 +48,18 @@
       "cells": [
         {
           "cellClass": "ag-cell ag-column-date",
+          "numericFingerprint": 4,
+          "phaseHint": "accept",
+          "date": "2026-08-15"
+        },
+        {
+          "cellClass": "ag-cell ag-column-task",
+          "numericFingerprint": 4,
+          "phaseHint": "accept",
+          "date": "2026-08-15"
+        },
+        {
+          "cellClass": "ag-cell ag-column-hours",
           "numericFingerprint": 4,
           "phaseHint": "accept",
           "date": "2026-08-15"
