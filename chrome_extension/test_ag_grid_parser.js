@@ -218,14 +218,16 @@ run('deduplicates conflicting duplicates by row index and class fingerprint in o
 });
 
 run('expands only confirmed contracted group controls', async () => {
-  const unrelated = new FakeNode({ className: 'ag-row-group-contracted', text: 'Не группа' });
-  const groupControl = new FakeNode({ className: 'ag-group-contracted' });
+  const unrelatedPageControl = new FakeNode({ className: 'ag-row-group-contracted', text: 'Не группа' });
+  const unrelatedGroupControl = new FakeNode({ className: 'ag-group-contracted' });
+  const ariaControl = new FakeNode({ attrs: { 'aria-expanded': 'false' } });
+  const groupControl = new FakeNode({ className: 'ag-row-group-contracted' });
   const group = row(20, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
-    new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [groupControl] }),
+    new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [unrelatedGroupControl, ariaControl, groupControl] }),
     cell('ag-group-value', 'Разработка'),
     cell('ag-group-child-count', '(1)')
   ]);
-  const documentLike = new FakeDocument([grid([group]), unrelated]);
+  const documentLike = new FakeDocument([grid([group]), unrelatedPageControl]);
 
   const result = await parser.expandContractedGroups(documentLike, {
     timeoutMs: 10,
@@ -237,7 +239,9 @@ run('expands only confirmed contracted group controls', async () => {
   });
 
   assert.strictEqual(groupControl.clicked, 1);
-  assert.strictEqual(unrelated.clicked, 0);
+  assert.strictEqual(unrelatedPageControl.clicked, 0);
+  assert.strictEqual(unrelatedGroupControl.clicked, 0);
+  assert.strictEqual(ariaControl.clicked, 0);
   assert.strictEqual(result.expandedCount, 0);
   assert.strictEqual(result.failedGroups.length, 1);
 });
@@ -250,9 +254,9 @@ run('waits for mutations, stops on no change, and isolates group failures', asyn
     disconnect() { this.disconnected = true; }
   }
 
-  const changedControl = new FakeNode({ className: 'ag-group-contracted' });
-  const unchangedControl = new FakeNode({ className: 'ag-group-contracted' });
-  const throwingControl = new FakeNode({ className: 'ag-group-contracted' });
+  const changedControl = new FakeNode({ className: 'ag-row-group-contracted' });
+  const unchangedControl = new FakeNode({ className: 'ag-row-group-contracted' });
+  const throwingControl = new FakeNode({ className: 'ag-row-group-contracted' });
   throwingControl.click = () => { throw new Error('click failed'); };
   const groups = [changedControl, unchangedControl, throwingControl].map((control, index) => row(index + 1, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
     new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [control] }),
@@ -280,10 +284,12 @@ run('waits for mutations, stops on no change, and isolates group failures', asyn
   assert.strictEqual(changedControl.clicked, 1);
   assert.strictEqual(unchangedControl.clicked, 1);
   assert.strictEqual(throwingControl.clicked, 0);
+  assert.strictEqual(observers.length, 2);
+  assert(expansionResult.warnings.some((warning) => warning.code === 'expansion-no-change' && warning.rowIndex === 2));
 });
 
 run('respects the expansion limit', async () => {
-  const controls = [1, 2, 3].map((index) => new FakeNode({ className: 'ag-group-contracted', attrs: { 'data-index': String(index) } }));
+  const controls = [1, 2, 3].map((index) => new FakeNode({ className: 'ag-row-group-contracted', attrs: { 'data-index': String(index) } }));
   const groups = controls.map((control, index) => row(index + 1, 'ag-row-level-0 ag-row-group ag-row-group-contracted', [
     new FakeNode({ className: 'ag-cell ag-row-group-cell', children: [control] }),
     cell('ag-group-value', `Группа ${index + 1}`),
@@ -292,7 +298,11 @@ run('respects the expansion limit', async () => {
   const result = await parser.expandContractedGroups(new FakeDocument([grid(groups)]), {
     timeoutMs: 1,
     maxGroups: 2,
-    MutationObserver: class { observe() {} disconnect() {} }
+    MutationObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe() { this.callback([{ type: 'childList' }]); }
+      disconnect() {}
+    }
   });
 
   assert.strictEqual(controls[0].clicked, 1);

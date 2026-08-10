@@ -351,21 +351,8 @@
     widget.style.display = isVisible ? 'block' : 'none';
 
     if (isVisible) {
-      autoExpandHiddenComments();
       parseTrackStudioAutoFetchPlan();
     }
-  }
-
-  function autoExpandHiddenComments() {
-    const buttons = document.querySelectorAll('button, a, span, div.btn');
-    buttons.forEach(b => {
-      const txt = b.innerText ? b.innerText.trim().toLowerCase() : '';
-      if (txt.includes('показать все') || txt.includes('все сообщения') || txt.includes('раскрыть историю') || txt.includes('show all')) {
-        try {
-          b.click();
-        } catch (e) {}
-      }
-    });
   }
 
   function renderExpansionStatus(message) {
@@ -415,12 +402,6 @@
       }
     }
   }
-
-  chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === "toggle_widget") {
-      toggleWidget();
-    }
-  });
 
   function parseDateFromText(txt) {
     const m = txt.match(/\b(\d{2})\.(\d{2})\.(\d{2,4})\b/);
@@ -1377,11 +1358,6 @@
     navigator.clipboard.writeText(reportText).then(() => {
       alert('✅ Отчет "П-Ф по запросу" скопирован в буфер обмена!');
     });
-  }
-
-  function toggleWidget() {
-    isVisible = !isVisible;
-    initWidget();
   }
 
   // Слушатель сообщений от background.js (Service Worker) при клике на иконку расширения

@@ -2,11 +2,12 @@
 
 ## Changes
 
-- Added `expandContractedGroups(document, options)` to `chrome_extension/ag_grid_parser.js`.
-- Expansion targets only confirmed contracted controls inside a group row's group cell; unrelated page controls and `aria-expanded` elements are ignored.
-- Added bounded `MutationObserver`/timeout handling, maximum group limit, stop-on-no-change behavior, and per-group failure warnings.
-- Added the `Раскрыть и пересчитать` hook to legacy `content.js` with loading state, fresh parser scan, legacy recalculation/render, source quality, and warning status.
-- Preserved the existing `toggle_widget` behavior and did not change `phase_calculator.js` or the widget implementation.
+- Fixed `expandContractedGroups(document, options)` in `chrome_extension/ag_grid_parser.js` so the only expansion target is `.ag-row-group-contracted` inside a contracted group row's group cell.
+- `.ag-group-contracted` and standalone `aria-expanded` controls are ignored, including when nested in an otherwise valid group cell.
+- Expansion now records an `expansion-no-change` warning and stops before attempting later groups after the first group with no observable mutation.
+- Removed duplicate `toggleWidget` declarations and the automatic comments/history expansion; retained both `toggle_widget` and `toggleWidget` message actions and the explicit recalculate hook.
+- Added regression coverage for target selection, stop-on-no-change, failure isolation, and the expansion limit.
+- `phase_calculator.js` was not changed.
 
 ## Verification
 
@@ -17,7 +18,7 @@
 
 ## Commit
 
-Commit message from brief: `feat: add explicit AG Grid expansion`
+Fix commit message: `fix: address Task 4 expansion findings`
 
 ## Concern
 

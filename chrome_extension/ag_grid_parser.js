@@ -210,8 +210,8 @@
     if (!hasClassName(row, 'ag-row-group-contracted')) return null;
     const groupCell = firstGroupCell(row);
     if (!groupCell) return null;
-    if (hasClassName(groupCell, 'ag-group-contracted') || hasClassName(groupCell, 'ag-row-group-contracted')) return groupCell;
-    return groupCell.querySelector('.ag-group-contracted, .ag-row-group-contracted');
+    if (hasClassName(groupCell, 'ag-row-group-contracted')) return groupCell;
+    return groupCell.querySelector('.ag-row-group-contracted');
   }
 
   function expansionTarget(documentLike, attempted) {
@@ -279,6 +279,10 @@
         result.warnings.push(mutation.warning);
       }
       if (mutation.changed) result.expandedCount += 1;
+      if (!mutation.changed) {
+        result.warnings.push({ code: 'expansion-no-change', rowIndex, message: 'AG Grid showed no observable change after group expansion; stopped further expansion.' });
+        break;
+      }
     }
 
     if (attempted.size >= config.maxGroups && expansionTarget(documentLike, attempted)) {
